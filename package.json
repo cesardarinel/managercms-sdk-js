@@ -1,0 +1,29 @@
+{
+  "name": "managercms-sdk",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "prepare": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cesardarinel/managercms-sdk-js.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/cesardarinel/managercms-sdk-js/issues"
+  },
+  "homepage": "https://github.com/cesardarinel/managercms-sdk-js#readme",
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "typescript": "^5.9.3",
+    "vitest": "^1.0.0"
+  }
+}

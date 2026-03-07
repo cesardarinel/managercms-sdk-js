@@ -1,0 +1,24 @@
+# Dependencias
+node_modules/
+package-lock.json
+
+# Salida de Compilación
+dist/
+*.tsbuildinfo
+
+# Logs y Debugging
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Entorno de Desarrollo
+.env
+.env.local
+.vscode/
+.idea/
+
+# Tests
+coverage/
+*.test.js
+*.test.d.ts
