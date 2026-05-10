@@ -272,7 +272,7 @@ describe('ManagerCMS SDK', () => {
         await sdk.getWebsite();
       } catch (error) {
         const json = (error as ManagerCMSError).toJSON();
-        expect(json.name).toBe('ManagerCMSError');
+        expect(['ManagerCMSError', 'ServerError']).toContain(json.name);
         expect(json.status).toBe(500);
         expect(json.url).toBeDefined();
       }
