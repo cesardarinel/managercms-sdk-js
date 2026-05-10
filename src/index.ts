@@ -9,6 +9,8 @@ import { ContentService } from './services/ContentService';
 import { SettingsService } from './services/SettingsService';
 import { ManagerCMSError } from './models/ManagerCMSError';
 
+const DEFAULT_API_URL = 'https://api.manager.1bits.site';
+
 export { ManagerCMSError } from './models/ManagerCMSError';
 export { MemoryTokenStore, LocalStorageTokenStore } from './stores/TokenStore';
 export type { ITokenStore } from './stores/TokenStore';
@@ -31,8 +33,8 @@ export type {
  * Configuración del cliente ManagerCMS
  */
 export interface ManagerCMSConfig {
-  /** URL base del API de ManagerCMS */
-  apiUrl: string;
+  /** URL base del API de ManagerCMS (opcional, valor por defecto: https://api.manager.1bits.site) */
+  apiUrl?: string;
   /** Token de autenticación (opcional si se usa tokenStore) */
   token?: string;
   /** Función fetch personalizada */
@@ -49,12 +51,21 @@ export interface ManagerCMSConfig {
  * ```typescript
  * import { ManagerCMS } from '@managercms/sdk';
  *
+ * // Sin especificar URL (usa la URL por defecto)
  * const cms = new ManagerCMS({
- *   apiUrl: 'https://api.manager.1bits.site',
  *   token: 'tu-token'
  * });
  *
  * const entries = await cms.getEntries('blog');
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Especificar URL personalizada si es necesario
+ * const cms = new ManagerCMS({
+ *   apiUrl: 'https://api.custom-domain.com',
+ *   token: 'tu-token'
+ * });
  * ```
  */
 export class ManagerCMS {
@@ -69,7 +80,7 @@ export class ManagerCMS {
    * @param config - Configuración del cliente
    */
   constructor(config: ManagerCMSConfig) {
-    const apiUrl = config.apiUrl.replace(/\/$/, '');
+    const apiUrl = (config.apiUrl || DEFAULT_API_URL).replace(/\/$/, '');
 
     if (config.tokenStore) {
       this.tokenStore = config.tokenStore;
