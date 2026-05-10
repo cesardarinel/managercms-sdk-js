@@ -7,15 +7,24 @@ import type { ITokenStore } from './stores/TokenStore';
 import { MemoryTokenStore, LocalStorageTokenStore } from './stores/TokenStore';
 import { ContentService } from './services/ContentService';
 import { SettingsService } from './services/SettingsService';
-import { ManagerCMSError } from './models/ManagerCMSError';
+import { ManagerCMSError, NotFoundError, UnauthorizedError, ValidationError, ServerError } from './errors/ManagerCMSError';
+import type { Hooks } from './stores/Hooks';
+import { HooksManager } from './stores/Hooks';
+import { CacheStore } from './stores/CacheStore';
 
 const DEFAULT_API_URL = 'https://api.manager.1bits.site';
+const DEFAULT_PAGE_SIZE = 10;
+const DEFAULT_TIMEOUT = 30000;
+const DEFAULT_RETRIES = 3;
+const DEFAULT_CACHE_TTL = 300;
 
-export { ManagerCMSError } from './models/ManagerCMSError';
+export { ManagerCMSError, NotFoundError, UnauthorizedError, ValidationError, ServerError } from './errors/ManagerCMSError';
 export { MemoryTokenStore, LocalStorageTokenStore } from './stores/TokenStore';
 export type { ITokenStore } from './stores/TokenStore';
 export { ContentService } from './services/ContentService';
 export { SettingsService } from './services/SettingsService';
+export type { Hooks } from './stores/Hooks';
+export { CacheStore } from './stores/CacheStore';
 export type {
   Website,
   ContentType,
@@ -41,6 +50,18 @@ export interface ManagerCMSConfig {
   fetch?: typeof fetch;
   /** Almacenamiento de token personalizado */
   tokenStore?: ITokenStore;
+  /** Tamaño de página por defecto para paginación */
+  defaultPageSize?: number;
+  /** Timeout de requests en ms */
+  timeout?: number;
+  /** Número de reintentos automáticos */
+  retries?: number;
+  /** Habilitar cache en memoria */
+  cacheEnabled?: boolean;
+  /** TTL del cache en segundos */
+  cacheTTL?: number;
+  /** Hooks para interceptar requests/responses */
+  hooks?: Hooks;
 }
 
 /**
@@ -61,10 +82,19 @@ export interface ManagerCMSConfig {
  *
  * @example
  * ```typescript
- * // Especificar URL personalizada si es necesario
+ * // Configuración completa con cache y hooks
  * const cms = new ManagerCMS({
- *   apiUrl: 'https://api.custom-domain.com',
- *   token: 'tu-token'
+ *   token: 'tu-token',
+ *   cacheEnabled: true,
+ *   cacheTTL: 300,
+ *   defaultPageSize: 20,
+ *   timeout: 30000,
+ *   retries: 3,
+ *   hooks: {
+ *     onRequest: (url, options) => console.log(`Request: ${url}`),
+ *     onResponse: (response) => console.log(`Status: ${response.status}`),
+ *     onError: (error) => console.error(`Error: ${error.message}`)
+ *   }
  * });
  * ```
  */
@@ -74,12 +104,16 @@ export class ManagerCMS {
   /** Servicio de configuración y metadatos */
   public settings: SettingsService;
   private tokenStore: ITokenStore;
+  private cache: CacheStore | null = null;
+  private hooksManager: HooksManager;
+  private config: ManagerCMSConfig;
 
   /**
    * Crea una nueva instancia del cliente ManagerCMS
    * @param config - Configuración del cliente
    */
   constructor(config: ManagerCMSConfig) {
+    this.config = config;
     const apiUrl = (config.apiUrl || DEFAULT_API_URL).replace(/\/$/, '');
 
     if (config.tokenStore) {
@@ -91,10 +125,38 @@ export class ManagerCMS {
       }
     }
 
+    this.hooksManager = new HooksManager(config.hooks);
+
+    if (config.cacheEnabled) {
+      const ttl = (config.cacheTTL || DEFAULT_CACHE_TTL) * 1000;
+      this.cache = new CacheStore(ttl);
+    }
+
     const fetchFn = config.fetch || fetch;
 
-    this.content = new ContentService(apiUrl, this.tokenStore, fetchFn);
-    this.settings = new SettingsService(apiUrl, this.tokenStore, fetchFn);
+    this.content = new ContentService(
+      apiUrl,
+      this.tokenStore,
+      fetchFn,
+      this.cache,
+      this.hooksManager,
+      {
+        timeout: config.timeout || DEFAULT_TIMEOUT,
+        retries: config.retries || DEFAULT_RETRIES,
+        defaultPageSize: config.defaultPageSize || DEFAULT_PAGE_SIZE,
+      }
+    );
+    this.settings = new SettingsService(
+      apiUrl,
+      this.tokenStore,
+      fetchFn,
+      this.cache,
+      this.hooksManager,
+      {
+        timeout: config.timeout || DEFAULT_TIMEOUT,
+        retries: config.retries || DEFAULT_RETRIES,
+      }
+    );
   }
 
   /**
