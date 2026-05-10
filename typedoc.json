@@ -1,0 +1,14 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "out": "docs",
+  "name": "ManagerCMS SDK",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "plugin": [],
+  "theme": "default",
+  "navigationLinks": {
+    "GitHub": "https://github.com/cesardarinel/managercms-sdk-js"
+  }
+}

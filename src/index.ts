@@ -1,128 +1,184 @@
-export class ManagerCMSError extends Error {
-  constructor(public status: number, message: string, public data?: any) {
-    super(message);
-    this.name = 'ManagerCMSError';
-  }
+/**
+ * ManagerCMS SDK - TypeScript Client
+ * @packageDocumentation
+ */
+
+import type { ITokenStore } from './stores/TokenStore';
+import { MemoryTokenStore, LocalStorageTokenStore } from './stores/TokenStore';
+import { ContentService } from './services/ContentService';
+import { SettingsService } from './services/SettingsService';
+import { ManagerCMSError } from './models/ManagerCMSError';
+
+export { ManagerCMSError } from './models/ManagerCMSError';
+export { MemoryTokenStore, LocalStorageTokenStore } from './stores/TokenStore';
+export type { ITokenStore } from './stores/TokenStore';
+export { ContentService } from './services/ContentService';
+export { SettingsService } from './services/SettingsService';
+export type {
+  Website,
+  ContentType,
+  Entry,
+  GetEntriesOptions,
+  PaginatedResponse,
+  APIInfo,
+  Stats,
+  HealthCheckResponse,
+  CreateEntryData,
+  UpdateEntryData,
+} from './models/types';
+
+/**
+ * Configuración del cliente ManagerCMS
+ */
+export interface ManagerCMSConfig {
+  /** URL base del API de ManagerCMS */
+  apiUrl: string;
+  /** Token de autenticación (opcional si se usa tokenStore) */
+  token?: string;
+  /** Función fetch personalizada */
+  fetch?: typeof fetch;
+  /** Almacenamiento de token personalizado */
+  tokenStore?: ITokenStore;
 }
 
-export interface WebsiteInfo {
-  id: number;
-  name: string;
-  domain: string;
-}
-
-export interface ContentType {
-  id: number;
-  name: string;
-  slug: string;
-}
-
-export interface Entry {
-  id: number;
-  created_at: string;
-  updated_at: string;
-  data: Record<string, any>;
-}
-
-export interface GetEntriesOptions {
-  pageSize?: number;
-  page?: number;
-  filters?: Record<string, string | number | boolean>;
-  ordering?: string;
-  search?: string;
-}
-
+/**
+ * Cliente principal de ManagerCMS
+ * Proporciona acceso a todos los servicios del CMS
+ *
+ * @example
+ * ```typescript
+ * import { ManagerCMS } from '@managercms/sdk';
+ *
+ * const cms = new ManagerCMS({
+ *   apiUrl: 'https://api.manager.1bits.site',
+ *   token: 'tu-token'
+ * });
+ *
+ * const entries = await cms.getEntries('blog');
+ * ```
+ */
 export class ManagerCMS {
-  private apiUrl: string;
-  private token: string;
+  /** Servicio de contenido para CRUD de entradas */
+  public content: ContentService;
+  /** Servicio de configuración y metadatos */
+  public settings: SettingsService;
+  private tokenStore: ITokenStore;
 
-  constructor(token: string, apiUrl: string = 'https://manager.1bits.site') {
-    this.apiUrl = apiUrl.replace(/\/$/, '');
-    this.token = token;
-  }
+  /**
+   * Crea una nueva instancia del cliente ManagerCMS
+   * @param config - Configuración del cliente
+   */
+  constructor(config: ManagerCMSConfig) {
+    const apiUrl = config.apiUrl.replace(/\/$/, '');
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${this.apiUrl}${endpoint}`, {
-      ...options,
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-        ...options.headers,
+    if (config.tokenStore) {
+      this.tokenStore = config.tokenStore;
+    } else {
+      this.tokenStore = new MemoryTokenStore();
+      if (config.token) {
+        this.tokenStore.setToken(config.token);
       }
-    });
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = await response.json();
-      } catch {
-        errorData = null;
-      }
-      throw new ManagerCMSError(
-        response.status, 
-        `Error en la API de ManagerCMS: ${response.statusText}`,
-        errorData
-      );
-    }
-    return response.json();
-  }
-
-  // --- Endpoints de Delivery ---
-
-  async getWebsiteInfo(): Promise<WebsiteInfo> {
-    return this.request<WebsiteInfo>('/websites/');
-  }
-
-  async getContentTypes(): Promise<ContentType[]> {
-    return this.request<ContentType[]>('/websites/content-types/');
-  }
-
-  async getEntries<T = Entry>(modelSlug: string, options: GetEntriesOptions = {}): Promise<T[]> {
-    const params = new URLSearchParams();
-
-    if (options.pageSize) params.append('page_size', options.pageSize.toString());
-    if (options.page) params.append('page', options.page.toString());
-    if (options.ordering) params.append('ordering', options.ordering);
-    if (options.search) params.append('search', options.search);
-
-    if (options.filters) {
-      Object.entries(options.filters).forEach(([key, value]) => {
-        params.append(key, value.toString());
-      });
     }
 
-    const queryString = params.toString();
-    const baseUrl = options.pageSize || options.page
-      ? `/websites/paginacion/content/${modelSlug}/entries/`
-      : `/websites/content/${modelSlug}/entries/`;
+    const fetchFn = config.fetch || fetch;
 
-    const url = queryString ? `${baseUrl}?${queryString}` : baseUrl;
-    return this.request<T[]>(url);
+    this.content = new ContentService(apiUrl, this.tokenStore, fetchFn);
+    this.settings = new SettingsService(apiUrl, this.tokenStore, fetchFn);
   }
 
-  async getEntry<T = Entry>(modelSlug: string, id: number | string): Promise<T> {
-    return this.request<T>(`/websites/content/${modelSlug}/entries/${id}/`);
+  /**
+   * Establece un nuevo token de autenticación
+   * @param token - Nuevo token
+   */
+  setToken(token: string): void {
+    this.tokenStore.setToken(token);
   }
 
-  // --- Management API ---
-
-  async createEntry<T = Entry>(modelSlug: string, data: any): Promise<T> {
-    return this.request<T>(`/websites/content/${modelSlug}/entries/`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+  /**
+   * Limpia el token de autenticación actual
+   */
+  clearToken(): void {
+    this.tokenStore.clearToken();
   }
 
-  async updateEntry<T = Entry>(modelSlug: string, id: number | string, data: any): Promise<T> {
-    return this.request<T>(`/websites/content/${modelSlug}/entries/${id}/`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+  /**
+   * Verifica el estado del servicio (sin autenticación)
+   */
+  async healthCheck() {
+    return this.settings.healthCheck();
   }
 
-  async deleteEntry(modelSlug: string, id: number | string): Promise<void> {
-    return this.request<void>(`/websites/content/${modelSlug}/entries/${id}/`, {
-      method: 'DELETE',
-    });
+  /**
+   * Obtiene información del API
+   */
+  async getAPIInfo() {
+    return this.settings.getAPIInfo();
+  }
+
+  /**
+   * Obtiene estadísticas del CMS (requiere autenticación)
+   */
+  async getStats() {
+    return this.settings.getStats();
+  }
+
+  /**
+   * Obtiene información del website (requiere autenticación)
+   */
+  async getWebsite() {
+    return this.settings.getWebsite();
+  }
+
+  /**
+   * Obtiene todos los tipos de contenido (requiere autenticación)
+   */
+  async getContentTypes() {
+    return this.settings.getContentTypes();
+  }
+
+  /**
+   * Obtiene entradas de un tipo de contenido
+   * @param contentType - Identificador del tipo de contenido
+   * @param options - Opciones de paginación y filtrado
+   */
+  async getEntries(contentType: string, options?: Parameters<typeof this.content.getEntries>[1]) {
+    return this.content.getEntries(contentType, options);
+  }
+
+  /**
+   * Obtiene una entrada específica
+   * @param contentType - Identificador del tipo de contenido
+   * @param id - ID de la entrada
+   */
+  async getEntry(contentType: string, id: number | string) {
+    return this.content.getEntry(contentType, id);
+  }
+
+  /**
+   * Crea una nueva entrada
+   * @param contentType - Identificador del tipo de contenido
+   * @param data - Datos de la entrada
+   */
+  async createEntry<T = any>(contentType: string, data: any) {
+    return this.content.createEntry<T>(contentType, data);
+  }
+
+  /**
+   * Actualiza una entrada existente
+   * @param contentType - Identificador del tipo de contenido
+   * @param id - ID de la entrada
+   * @param data - Datos a actualizar
+   */
+  async updateEntry<T = any>(contentType: string, id: number | string, data: any) {
+    return this.content.updateEntry<T>(contentType, id, data);
+  }
+
+  /**
+   * Elimina una entrada
+   * @param contentType - Identificador del tipo de contenido
+   * @param id - ID de la entrada
+   */
+  async deleteEntry(contentType: string, id: number | string) {
+    return this.content.deleteEntry(contentType, id);
   }
 }
