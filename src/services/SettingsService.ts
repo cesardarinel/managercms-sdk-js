@@ -119,7 +119,7 @@ export class SettingsService {
   }
 
   async getAPIInfo(): Promise<APIInfo> {
-    return this.request<APIInfo>('/', {}, true);
+    return this.request<APIInfo>('/info/', {}, true);
   }
 
   async getStats(): Promise<Stats> {

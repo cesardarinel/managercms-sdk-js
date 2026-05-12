@@ -6,7 +6,7 @@
 Se ha fijado la URL base de la API para garantizar que el SDK siempre apunte al punto de conexión oficial y no pueda ser alterado por configuraciones externas.
 
 #### Removido (Breaking Changes)
-- Se eliminó la propiedad `apiUrl` de la interfaz `ManagerCMSConfig`. El SDK ahora usa exclusivamente `https://api.manager.1bits.site`.
+- Se eliminó la propiedad `apiUrl` de la interfaz `ManagerCMSConfig`. El SDK ahora usa exclusivamente `https://api.manager.1bits.site/api`.
 - Ya no es necesario pasar `apiUrl` al constructor de `ManagerCMS`.
 
 #### Mejoras de Rendimiento

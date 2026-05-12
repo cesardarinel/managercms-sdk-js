@@ -488,17 +488,21 @@ const customStore: ITokenStore = {
 import { ManagerCMS, MemoryTokenStore, LocalStorageTokenStore } from '@managercms/sdk';
 
 interface ManagerCMSConfig {
+  apiUrl?: string;         // URL base del API (opcional)
   token?: string;          // Token de autenticación
   fetch?: typeof fetch;    // Función fetch personalizada
   tokenStore?: ITokenStore; // Store de token personalizado
 }
 
 const cms = new ManagerCMS({
+  // URL base personalizada (opcional, por defecto apunta a producción con /api)
+  apiUrl: 'https://api.manager.1bits.site/api',
+
   token: 'tu-token',
 
   // Fetch personalizado (para testing o logging)
   fetch: customFetch,
-
+...
   // Persistencia de token (Memory por defecto)
   tokenStore: new MemoryTokenStore(),
   // Para navegador: new LocalStorageTokenStore()
@@ -580,8 +584,8 @@ import { ContentService, SettingsService, MemoryTokenStore } from '@managercms/s
 const store = new MemoryTokenStore();
 store.setToken('token');
 
-const content = new ContentService('https://api.manager.1bits.site', store);
-const settings = new SettingsService('https://api.manager.1bits.site', store);
+const content = new ContentService('https://api.manager.1bits.site/api', store);
+const settings = new SettingsService('https://api.manager.1bits.site/api', store);
 
 const entries = await content.getEntries('blog');
 const website = await settings.getWebsite();

@@ -4,7 +4,7 @@ import { ManagerCMS, ManagerCMSError } from './index';
 vi.stubGlobal('fetch', vi.fn());
 
 describe('ManagerCMS SDK', () => {
-  const defaultUrl = 'https://api.manager.1bits.site';
+  const defaultUrl = 'https://api.manager.1bits.site/api';
   const token = 'mi-token-secreto';
   let sdk: ManagerCMS;
 
@@ -51,6 +51,51 @@ describe('ManagerCMS SDK', () => {
 
       expect(customStore.getToken()).toBe('custom-token');
     });
+
+    it('debería permitir configurar apiUrl personalizada', async () => {
+      const customUrl = 'https://mi-servidor.com/api';
+      sdk = new ManagerCMS({
+        apiUrl: customUrl,
+        token,
+      });
+
+      (fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => ({ status: 'ok' }),
+      });
+
+      await sdk.healthCheck();
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${customUrl}/health/`,
+        expect.any(Object)
+      );
+    });
+
+    it('debería normalizar apiUrl eliminando slash final', async () => {
+      const customUrl = 'https://mi-servidor.com/api/';
+      sdk = new ManagerCMS({
+        apiUrl: customUrl,
+        token,
+      });
+
+      (fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => ({ status: 'ok' }),
+      });
+
+      await sdk.healthCheck();
+
+      expect(fetch).toHaveBeenCalledWith(
+        'https://mi-servidor.com/api/health/',
+        expect.any(Object)
+      );
+    });
+
+    it('debería exponer la apiUrl actual a través de un getter', () => {
+      sdk = new ManagerCMS({ apiUrl: 'https://mi-api.com/api' });
+      expect(sdk.apiUrl).toBe('https://mi-api.com/api');
+    });
   });
 
   describe('SettingsService - Endpoints Públicos', () => {
@@ -87,6 +132,10 @@ describe('ManagerCMS SDK', () => {
       const result = await sdk.getAPIInfo();
 
       expect(result.name).toBe('ManagerCMS API');
+      expect(fetch).toHaveBeenCalledWith(
+        `${defaultUrl}/info/`,
+        expect.any(Object)
+      );
     });
 
     it('getStats debería requerir autenticación', async () => {
@@ -123,6 +172,14 @@ describe('ManagerCMS SDK', () => {
       const result = await sdk.getWebsite();
 
       expect(result.name).toBe('Mi Sitio');
+      expect(fetch).toHaveBeenCalledWith(
+        `${defaultUrl}/websites/`,
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${token}`,
+          }),
+        })
+      );
     });
 
     it('getContentTypes debería retornar tipos de contenido', async () => {
@@ -138,6 +195,14 @@ describe('ManagerCMS SDK', () => {
 
       expect(result).toHaveLength(2);
       expect(result[0].api_identifier).toBe('blog');
+      expect(fetch).toHaveBeenCalledWith(
+        `${defaultUrl}/websites/content-types/`,
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${token}`,
+          }),
+        })
+      );
     });
   });
 
@@ -161,6 +226,10 @@ describe('ManagerCMS SDK', () => {
 
       expect(result.count).toBe(50);
       expect(result.results).toHaveLength(1);
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining(`${defaultUrl}/websites/paginacion/content/blog/entries/`),
+        expect.any(Object)
+      );
     });
 
     it('getEntry debería retornar una entrada específica', async () => {
@@ -178,6 +247,10 @@ describe('ManagerCMS SDK', () => {
       const result = await sdk.getEntry('blog', 123);
 
       expect(result.id).toBe(123);
+      expect(fetch).toHaveBeenCalledWith(
+        `${defaultUrl}/websites/content/blog/entries/123/`,
+        expect.any(Object)
+      );
     });
 
     it('createEntry debería crear una nueva entrada', async () => {
