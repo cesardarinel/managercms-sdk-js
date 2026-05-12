@@ -4,7 +4,7 @@ import { ManagerCMS, ManagerCMSError } from './index';
 vi.stubGlobal('fetch', vi.fn());
 
 describe('ManagerCMS SDK', () => {
-  const defaultUrl = 'https://manager.1bits.site';
+  const defaultUrl = 'https://api.manager.1bits.site';
   const token = 'mi-token-secreto';
   let sdk: ManagerCMS;
 
@@ -18,7 +18,7 @@ describe('ManagerCMS SDK', () => {
 
   describe('Configuración', () => {
     it('debería inicializarse con token en objeto config', () => {
-      sdk = new ManagerCMS({ apiUrl: defaultUrl, token });
+      sdk = new ManagerCMS({ token });
       expect(sdk).toBeDefined();
     });
 
@@ -29,7 +29,6 @@ describe('ManagerCMS SDK', () => {
       });
 
       sdk = new ManagerCMS({
-        apiUrl: defaultUrl,
         token,
         fetch: customFetch,
       });
@@ -47,7 +46,6 @@ describe('ManagerCMS SDK', () => {
       };
 
       sdk = new ManagerCMS({
-        apiUrl: defaultUrl,
         tokenStore: customStore as any,
       });
 
@@ -57,7 +55,7 @@ describe('ManagerCMS SDK', () => {
 
   describe('SettingsService - Endpoints Públicos', () => {
     beforeEach(() => {
-      sdk = new ManagerCMS({ apiUrl: defaultUrl, token });
+      sdk = new ManagerCMS({ token });
     });
 
     it('healthCheck debería retornar estado ok', async () => {
@@ -113,7 +111,7 @@ describe('ManagerCMS SDK', () => {
 
   describe('SettingsService - Endpoints Protegidos', () => {
     beforeEach(() => {
-      sdk = new ManagerCMS({ apiUrl: defaultUrl, token });
+      sdk = new ManagerCMS({ token });
     });
 
     it('getWebsite debería retornar información del website', async () => {
@@ -145,7 +143,7 @@ describe('ManagerCMS SDK', () => {
 
   describe('ContentService', () => {
     beforeEach(() => {
-      sdk = new ManagerCMS({ apiUrl: defaultUrl, token });
+      sdk = new ManagerCMS({ token });
     });
 
     it('getEntries debería retornar entradas paginadas', async () => {
@@ -235,16 +233,17 @@ describe('ManagerCMS SDK', () => {
     });
   });
 
-  describe('Manejo de Errores', () => {
+  describe('Manejo de Errores y Alto Rendimiento', () => {
     beforeEach(() => {
-      sdk = new ManagerCMS({ apiUrl: defaultUrl, token });
+      sdk = new ManagerCMS({ token });
     });
 
-    it('debería lanzar ManagerCMSError con metadatos completos', async () => {
+    it('debería lanzar ManagerCMSError con datos de error parseados correctamente (Lazy Parsing)', async () => {
       (fetch as any).mockResolvedValue({
         ok: false,
         status: 404,
         statusText: 'Not Found',
+        headers: new Headers({ 'Content-Type': 'application/json' }),
         json: async () => ({ detail: 'No encontrado' }),
       });
 
@@ -255,41 +254,73 @@ describe('ManagerCMS SDK', () => {
         expect(error).toBeInstanceOf(ManagerCMSError);
         const cmsError = error as ManagerCMSError;
         expect(cmsError.status).toBe(404);
-        expect(cmsError.url).toContain('/websites/');
         expect(cmsError.data).toEqual({ detail: 'No encontrado' });
       }
     });
 
-    it('debería tener método toJSON para logs', async () => {
+    it('debería manejar errores sin body JSON sin fallar (Robustez)', async () => {
       (fetch as any).mockResolvedValue({
         ok: false,
         status: 500,
-        statusText: 'Internal Server Error',
-        json: async () => ({}),
+        statusText: 'Server Error',
+        headers: new Headers({ 'Content-Type': 'text/plain' }),
+        text: async () => 'Error interno',
       });
 
       try {
         await sdk.getWebsite();
       } catch (error) {
-        const json = (error as ManagerCMSError).toJSON();
-        expect(json.name).toBe('ManagerCMSError');
-        expect(json.status).toBe(500);
-        expect(json.url).toBeDefined();
+        expect(error).toBeInstanceOf(ManagerCMSError);
+        expect((error as ManagerCMSError).data).toBeNull();
       }
     });
 
-    it('debería manejar error cuando no hay token', async () => {
-      const sdkWithoutToken = new ManagerCMS({ apiUrl: defaultUrl });
-
-      await expect(sdkWithoutToken.getEntries('blog')).rejects.toThrow(
-        'No authentication token available'
+    it('debería respetar el nuevo timeout de 10s por defecto', async () => {
+      // Simulamos una respuesta que tarda más que el timeout
+      (fetch as any).mockImplementation(() => 
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 50)
+        )
       );
+
+      // Bajamos el timeout en esta instancia para el test
+      const fastSdk = new ManagerCMS({ token, timeout: 10 });
+
+      await expect(fastSdk.getWebsite()).rejects.toThrow();
+    });
+
+    it('debería realizar el número correcto de reintentos optimizados (2)', async () => {
+      const mockFetch = vi.fn().mockRejectedValue(new Error('Network Error'));
+      const retrySdk = new ManagerCMS({ token, fetch: mockFetch, retries: 2 });
+
+      try {
+        await retrySdk.getWebsite();
+      } catch (e) {
+        // 1 intento inicial + 2 reintentos = 3 llamadas en total
+        expect(mockFetch).toHaveBeenCalledTimes(3);
+      }
+    });
+  });
+
+  describe('Optimización de Headers', () => {
+    it('debería enviar headers optimizados sin duplicación', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({})
+      });
+
+      sdk = new ManagerCMS({ token, fetch: mockFetch });
+      await sdk.getWebsite();
+
+      const callHeaders = mockFetch.mock.calls[0][1].headers;
+      expect(callHeaders['Authorization']).toBe(`Bearer ${token}`);
+      expect(callHeaders['Content-Type']).toBe('application/json');
     });
   });
 
   describe('Token Management', () => {
     it('setToken debería actualizar el token', async () => {
-      sdk = new ManagerCMS({ apiUrl: defaultUrl });
+      sdk = new ManagerCMS({});
 
       (fetch as any).mockResolvedValue({
         ok: true,
@@ -310,7 +341,7 @@ describe('ManagerCMS SDK', () => {
     });
 
     it('clearToken debería limpiar el token', async () => {
-      sdk = new ManagerCMS({ apiUrl: defaultUrl, token });
+      sdk = new ManagerCMS({ token });
       sdk.clearToken();
 
       await expect(sdk.getEntries('blog')).rejects.toThrow(

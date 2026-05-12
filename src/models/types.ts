@@ -25,6 +25,9 @@ export interface GetEntriesOptions {
   filters?: Record<string, string | number | boolean>;
   ordering?: string;
   search?: string;
+  status?: 'draft' | 'published' | 'archived';
+  createdAfter?: string;
+  createdBefore?: string;
 }
 
 export interface PaginatedResponse<T> {

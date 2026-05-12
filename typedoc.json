@@ -10,5 +10,7 @@
   "theme": "default",
   "navigationLinks": {
     "GitHub": "https://github.com/cesardarinel/managercms-sdk-js"
-  }
+  },
+  "categoryOrder": ["Client", "Services", "Errors", "Stores", "Models"],
+  "readme": "README.md"
 }
