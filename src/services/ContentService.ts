@@ -141,19 +141,19 @@ export class ContentService {
     const queryString = params.toString();
     const usePagination = options.pageSize || options.page;
     const baseUrl = usePagination
-      ? `/websites/paginacion/content/${modelSlug}/entries/`
-      : `/websites/content/${modelSlug}/entries/`;
+      ? `/api/websites/paginacion/content/${modelSlug}/entries/`
+      : `/api/websites/content/${modelSlug}/entries/`;
 
     const endpoint = queryString ? `${baseUrl}?${queryString}` : baseUrl;
     return this.request<PaginatedResponse<Entry>>(endpoint, {}, !options.page);
   }
 
   async getEntry(modelSlug: string, id: number | string): Promise<Entry> {
-    return this.request<Entry>(`/websites/content/${modelSlug}/entries/${id}/`);
+    return this.request<Entry>(`/api/websites/content/${modelSlug}/entries/${id}/`);
   }
 
   async createEntry<T = Entry>(modelSlug: string, data: CreateEntryData): Promise<T> {
-    return this.request<T>(`/websites/content/${modelSlug}/entries/`, {
+    return this.request<T>(`/api/websites/content/${modelSlug}/entries/`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -164,14 +164,14 @@ export class ContentService {
     id: number | string,
     data: UpdateEntryData
   ): Promise<T> {
-    return this.request<T>(`/websites/content/${modelSlug}/entries/${id}/`, {
+    return this.request<T>(`/api/websites/content/${modelSlug}/entries/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
   async deleteEntry(modelSlug: string, id: number | string): Promise<void> {
-    return this.request<void>(`/websites/content/${modelSlug}/entries/${id}/`, {
+    return this.request<void>(`/api/websites/content/${modelSlug}/entries/${id}/`, {
       method: 'DELETE',
     });
   }

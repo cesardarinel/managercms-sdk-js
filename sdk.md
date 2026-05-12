@@ -495,9 +495,9 @@ interface ManagerCMSConfig {
 }
 
 const cms = new ManagerCMS({
-  // URL base personalizada (opcional, por defecto apunta a producción con /api)
-  apiUrl: 'https://api.manager.1bits.site/api',
-
+  // URL base personalizada (opcional, por defecto apunta a producción)
+  apiUrl: 'https://api.manager.1bits.site',
+  
   token: 'tu-token',
 
   // Fetch personalizado (para testing o logging)
@@ -584,8 +584,8 @@ import { ContentService, SettingsService, MemoryTokenStore } from '@managercms/s
 const store = new MemoryTokenStore();
 store.setToken('token');
 
-const content = new ContentService('https://api.manager.1bits.site/api', store);
-const settings = new SettingsService('https://api.manager.1bits.site/api', store);
+const content = new ContentService('https://api.manager.1bits.site', store);
+const settings = new SettingsService('https://api.manager.1bits.site', store);
 
 const entries = await content.getEntries('blog');
 const website = await settings.getWebsite();
@@ -600,3 +600,37 @@ El SDK funciona en:
 - **Deno** - Runtime TypeScript nativo
 
 Para entorno browser sin `localStorage`, usa `MemoryTokenStore` (por defecto).
+
+## 🔍 Solución de Problemas (Troubleshooting)
+
+### 1. Error 404 en endpoints protegidos
+Si recibes un error 404 al intentar acceder a `getWebsite()` o `getEntries()`, verifica lo siguiente:
+- **Configuración en el Panel**: Asegúrate de haber creado al menos un Sitio y un Tipo de Contenido en el dashboard de ManagerCMS. Si el CMS no tiene datos, estos endpoints pueden retornar 404.
+- **Slug del modelo**: Verifica que el `api_identifier` que pasas a `getEntries(slug)` coincida exactamente con el configurado en el panel.
+
+### 2. Error 401 Unauthorized
+- **Token Inválido**: Verifica que el token copiado del panel sea correcto.
+- **Expiración**: Los tokens pueden ser revocados desde el panel. Si el error persiste, intenta generar un nuevo token.
+
+### 3. Depuración de peticiones
+Si necesitas ver exactamente qué URL se está llamando, puedes usar los `hooks` al inicializar el SDK:
+
+```typescript
+const cms = new ManagerCMS({
+  token: 'tu-token',
+  hooks: {
+    onRequest: (url, options) => {
+      console.log(`[SDK] ${options.method || 'GET'} ${url}`);
+    },
+    onResponse: (response) => {
+      console.log(`[SDK] Response Status: ${response.status}`);
+    }
+  }
+});
+```
+
+### 4. Barras diagonales (Slashes)
+El API de ManagerCMS es sensible a las barras finales. El SDK maneja esto automáticamente siguiendo estas reglas:
+- Endpoints públicos (`/health`, `/api/info`, `/api/stats`): **Sin** barra final.
+- Endpoints de recursos (`/api/websites/`, `/api/websites/content/`): **Con** barra final.
+- **Importante**: Si usas `apiUrl` personalizada, no incluyas `/api` al final de la URL base. El SDK lo añade automáticamente donde corresponde.

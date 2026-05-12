@@ -115,23 +115,23 @@ export class SettingsService {
   }
 
   async healthCheck(): Promise<HealthCheckResponse> {
-    return this.request<HealthCheckResponse>('/health/', {}, true);
+    return this.request<HealthCheckResponse>('/health', {}, true);
   }
 
   async getAPIInfo(): Promise<APIInfo> {
-    return this.request<APIInfo>('/info/', {}, true);
+    return this.request<APIInfo>('/api/info', {}, true);
   }
 
   async getStats(): Promise<Stats> {
-    return this.authenticatedRequest<Stats>('/stats/');
+    return this.request<Stats>('/api/stats', {}, true);
   }
 
   async getWebsite(): Promise<Website> {
-    return this.authenticatedRequest<Website>('/websites/', {}, true);
+    return this.authenticatedRequest<Website>('/api/websites/', {}, true);
   }
 
   async getContentTypes(): Promise<ContentType[]> {
-    return this.authenticatedRequest<ContentType[]>('/websites/content-types/', {}, true);
+    return this.authenticatedRequest<ContentType[]>('/api/websites/content-types/', {}, true);
   }
 
   clearCache(): void {
