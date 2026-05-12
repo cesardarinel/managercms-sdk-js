@@ -12,7 +12,7 @@ import type { Hooks } from './stores/Hooks';
 import { HooksManager } from './stores/Hooks';
 import { CacheStore } from './stores/CacheStore';
 
-const DEFAULT_API_URL = 'https://api.manager.1bits.site';
+const DEFAULT_API_URL = 'https://api.manager.1bits.site/api';
 const DEFAULT_PAGE_SIZE = 10;
 const DEFAULT_TIMEOUT = 10000;
 const DEFAULT_RETRIES = 2;
@@ -42,6 +42,8 @@ export type {
  * Configuración del cliente ManagerCMS
  */
 export interface ManagerCMSConfig {
+  /** URL base del API. Por defecto: https://api.manager.1bits.site/api */
+  apiUrl?: string;
   /** Token de autenticación (opcional si se usa tokenStore) */
   token?: string;
   /** Función fetch personalizada */
@@ -81,6 +83,7 @@ export interface ManagerCMSConfig {
  * ```typescript
  * // Configuración completa con cache y hooks
  * const cms = new ManagerCMS({
+ *   apiUrl: 'https://mi-api-personalizada.com/api',
  *   token: 'tu-token',
  *   cacheEnabled: true,
  *   cacheTTL: 300,
@@ -104,6 +107,7 @@ export class ManagerCMS {
   private cache: CacheStore | null = null;
   private hooksManager: HooksManager;
   private config: ManagerCMSConfig;
+  private _apiUrl: string;
 
   /**
    * Crea una nueva instancia del cliente ManagerCMS
@@ -111,7 +115,13 @@ export class ManagerCMS {
    */
   constructor(config: ManagerCMSConfig) {
     this.config = config;
-    const apiUrl = DEFAULT_API_URL;
+    let apiUrl = config.apiUrl || DEFAULT_API_URL;
+
+    // Normalizar URL eliminando slash final si existe
+    if (apiUrl.endsWith('/')) {
+      apiUrl = apiUrl.slice(0, -1);
+    }
+    this._apiUrl = apiUrl;
 
     if (config.tokenStore) {
       this.tokenStore = config.tokenStore;
@@ -132,7 +142,7 @@ export class ManagerCMS {
     const fetchFn = config.fetch || fetch;
 
     this.content = new ContentService(
-      apiUrl,
+      this._apiUrl,
       this.tokenStore,
       fetchFn,
       this.cache,
@@ -144,7 +154,7 @@ export class ManagerCMS {
       }
     );
     this.settings = new SettingsService(
-      apiUrl,
+      this._apiUrl,
       this.tokenStore,
       fetchFn,
       this.cache,
@@ -154,6 +164,13 @@ export class ManagerCMS {
         retries: config.retries || DEFAULT_RETRIES,
       }
     );
+  }
+
+  /**
+   * Retorna la URL del API que está utilizando el cliente
+   */
+  get apiUrl(): string {
+    return this._apiUrl;
   }
 
   /**
