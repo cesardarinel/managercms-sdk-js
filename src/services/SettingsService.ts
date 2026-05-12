@@ -25,85 +25,83 @@ export class SettingsService {
 
     if (useCache && this.cache) {
       const cached = this.cache.get<T>(endpoint);
-      if (cached) {
-        return cached;
-      }
+      if (cached) return cached;
     }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (options.headers) Object.assign(headers, options.headers);
 
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= this.options.retries; attempt++) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.options.timeout);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.options.timeout);
 
+      try {
         const response = await this.fetchFn(url, {
           ...options,
           signal: controller.signal,
-          headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-          },
+          headers
         });
 
         clearTimeout(timeoutId);
-
         this.hooksManager.onResponse(response);
 
         if (!response.ok) {
-          let errorData;
-          try {
-            errorData = await response.json();
-          } catch {
-            errorData = null;
-          }
-
-          let error: ManagerCMSError;
-          if (response.status === 404) {
-            error = new NotFoundError(`Error: ${response.statusText}`, { url, data: errorData });
-          } else if (response.status === 401) {
-            error = new UnauthorizedError(`Error: ${response.statusText}`, { url, data: errorData });
-          } else if (response.status === 400) {
-            error = new ValidationError(`Error: ${response.statusText}`, { url, data: errorData });
-          } else if (response.status >= 500) {
-            error = new ServerError(`Error: ${response.statusText}`, { url, data: errorData });
-          } else {
-            error = new ManagerCMSError(response.status, `Error: ${response.statusText}`, {
-              url,
-              originalError: null,
-              data: errorData,
-            });
-          }
+          const error = await this.createError(response, url);
           this.hooksManager.onError(error, url);
           throw error;
         }
 
         const data = await response.json();
-
-        if (useCache && this.cache) {
-          this.cache.set(endpoint, data);
-        }
+        if (useCache && this.cache) this.cache.set(endpoint, data);
 
         return data;
       } catch (error) {
+        clearTimeout(timeoutId);
         lastError = error as Error;
+
+        if (error instanceof ManagerCMSError && error.status < 500 && error.status !== 0) {
+          throw error;
+        }
+
         if (attempt < this.options.retries) {
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 100));
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 50));
         }
       }
     }
 
-    if (lastError) {
-      this.hooksManager.onError(lastError, url);
-      throw lastError;
+    throw lastError || new ManagerCMSError(0, 'Request failed', { url });
+  }
+
+  private async createError(response: Response, url: string): Promise<ManagerCMSError> {
+    const status = response.status;
+    const message = `Error: ${response.statusText}`;
+    let data = null;
+
+    try {
+      if (response.headers.get('content-type')?.includes('application/json')) {
+        data = await response.json();
+      }
+    } catch {
+      // Ignore
     }
-    throw new ManagerCMSError(0, 'Request failed', { url });
+    
+    if (status === 404) return new NotFoundError(message, { url, data });
+    if (status === 401) return new UnauthorizedError(message, { url, data });
+    if (status === 400) return new ValidationError(message, { url, data });
+    if (status >= 500) return new ServerError(message, { url, data });
+    
+    return new ManagerCMSError(status, message, { url, data, originalError: null });
   }
 
   private async authenticatedRequest<T>(endpoint: string, options: RequestInit = {}, useCache: boolean = false): Promise<T> {
     const token = this.tokenStore.getToken();
     if (!token) {
-      const error = new UnauthorizedError('No authentication token available', { url: `${this.apiUrl}${endpoint}` });
-      this.hooksManager.onError(error, `${this.apiUrl}${endpoint}`);
+      const url = `${this.apiUrl}${endpoint}`;
+      const error = new UnauthorizedError('No authentication token available', { url });
+      this.hooksManager.onError(error, url);
       throw error;
     }
 

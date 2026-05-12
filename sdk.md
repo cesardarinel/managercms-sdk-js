@@ -16,7 +16,6 @@ pnpm add @managercms/sdk
 import { ManagerCMS } from '@managercms/sdk';
 
 const cms = new ManagerCMS({
-  apiUrl: import.meta.env.PUBLIC_API_URL,
   token: import.meta.env.PRIVATE_API_TOKEN,
 });
 ```
@@ -28,7 +27,6 @@ import { ManagerCMS, MemoryTokenStore, LocalStorageTokenStore } from '@managercm
 
 // Configuración básica
 const cms = new ManagerCMS({
-  apiUrl: 'https://api.manager.1bits.site',
   token: 'tu-token',
 });
 
@@ -39,7 +37,6 @@ const customFetch = async (url, options) => {
 };
 
 const cmsWithFetch = new ManagerCMS({
-  apiUrl: 'https://api.manager.1bits.site',
   token: 'tu-token',
   fetch: customFetch,
 });
@@ -47,7 +44,6 @@ const cmsWithFetch = new ManagerCMS({
 // Con tokenStore personalizado (persistencia)
 const tokenStore = new LocalStorageTokenStore('my_token_key');
 const cmsWithStore = new ManagerCMS({
-  apiUrl: 'https://api.manager.1bits.site',
   tokenStore,
 });
 
@@ -106,18 +102,17 @@ import { useState, useEffect } from 'react';
 import { ManagerCMS } from '@managercms/sdk';
 
 interface Props {
-  apiUrl: string;
   token: string;
   contentType?: string;
 }
 
-export default function BlogList({ apiUrl, token, contentType = 'blog' }: Props) {
+export default function BlogList({ token, contentType = 'blog' }: Props) {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
-  const cms = new ManagerCMS({ apiUrl, token });
+  const cms = new ManagerCMS({ token });
 
   useEffect(() => {
     loadPosts();
@@ -175,7 +170,6 @@ import BlogList from '../components/BlogList';
 
 <BlogList 
   client:load 
-  apiUrl={import.meta.env.PUBLIC_API_URL}
   token={import.meta.env.PRIVATE_API_TOKEN}
   contentType="blog"
 />
@@ -189,7 +183,6 @@ import { ManagerCMS } from '@managercms/sdk';
 
 export function createCMS(token: string) {
   return new ManagerCMS({
-    apiUrl: import.meta.env.PUBLIC_API_URL!,
     token,
   });
 }
@@ -332,12 +325,12 @@ export const POST: APIRoute = async ({ request }) => {
 import { useState, useEffect, useCallback } from 'react';
 import { ManagerCMS } from '@managercms/sdk';
 
-export function useCMS(apiUrl: string, token: string) {
+export function useCMS(token: string) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const cms = new ManagerCMS({ apiUrl, token });
+  const cms = new ManagerCMS({ token });
 
   const fetchEntries = useCallback(async (contentType: string, options = {}) => {
     setLoading(true);
@@ -495,14 +488,12 @@ const customStore: ITokenStore = {
 import { ManagerCMS, MemoryTokenStore, LocalStorageTokenStore } from '@managercms/sdk';
 
 interface ManagerCMSConfig {
-  apiUrl: string;           // URL base del API (requerido)
   token?: string;          // Token de autenticación
   fetch?: typeof fetch;    // Función fetch personalizada
   tokenStore?: ITokenStore; // Store de token personalizado
 }
 
 const cms = new ManagerCMS({
-  apiUrl: 'https://api.manager.1bits.site',
   token: 'tu-token',
 
   // Fetch personalizado (para testing o logging)
@@ -546,7 +537,6 @@ try {
 ## 🔐 Variables de Entorno (.env)
 
 ```env
-PUBLIC_API_URL=https://api.manager.1bits.site
 PRIVATE_API_TOKEN=tu-token-seguro
 ```
 
@@ -563,7 +553,7 @@ En Astro, las variables con `PUBLIC_` son accesibles en cliente.
 El SDK está organizado en servicios especializados:
 
 ```typescript
-const cms = new ManagerCMS({ apiUrl, token });
+const cms = new ManagerCMS({ token });
 
 // Servicio de Contenido (CRUD)
 cms.content.getEntries('blog', { page: 1, pageSize: 10 });

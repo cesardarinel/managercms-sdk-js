@@ -14,9 +14,9 @@ import { CacheStore } from './stores/CacheStore';
 
 const DEFAULT_API_URL = 'https://api.manager.1bits.site';
 const DEFAULT_PAGE_SIZE = 10;
-const DEFAULT_TIMEOUT = 30000;
-const DEFAULT_RETRIES = 3;
-const DEFAULT_CACHE_TTL = 300;
+const DEFAULT_TIMEOUT = 10000;
+const DEFAULT_RETRIES = 2;
+const DEFAULT_CACHE_TTL = 60;
 
 export { ManagerCMSError, NotFoundError, UnauthorizedError, ValidationError, ServerError } from './errors/ManagerCMSError';
 export { MemoryTokenStore, LocalStorageTokenStore } from './stores/TokenStore';
@@ -42,8 +42,6 @@ export type {
  * Configuración del cliente ManagerCMS
  */
 export interface ManagerCMSConfig {
-  /** URL base del API de ManagerCMS (opcional, valor por defecto: https://api.manager.1bits.site) */
-  apiUrl?: string;
   /** Token de autenticación (opcional si se usa tokenStore) */
   token?: string;
   /** Función fetch personalizada */
@@ -72,7 +70,6 @@ export interface ManagerCMSConfig {
  * ```typescript
  * import { ManagerCMS } from '@managercms/sdk';
  *
- * // Sin especificar URL (usa la URL por defecto)
  * const cms = new ManagerCMS({
  *   token: 'tu-token'
  * });
@@ -114,7 +111,7 @@ export class ManagerCMS {
    */
   constructor(config: ManagerCMSConfig) {
     this.config = config;
-    const apiUrl = (config.apiUrl || DEFAULT_API_URL).replace(/\/$/, '');
+    const apiUrl = DEFAULT_API_URL;
 
     if (config.tokenStore) {
       this.tokenStore = config.tokenStore;
