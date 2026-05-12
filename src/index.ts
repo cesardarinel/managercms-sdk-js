@@ -12,7 +12,7 @@ import type { Hooks } from './stores/Hooks';
 import { HooksManager } from './stores/Hooks';
 import { CacheStore } from './stores/CacheStore';
 
-const DEFAULT_API_URL = 'https://api.manager.1bits.site/api';
+const DEFAULT_API_URL = 'https://api.manager.1bits.site';
 const DEFAULT_PAGE_SIZE = 10;
 const DEFAULT_TIMEOUT = 10000;
 const DEFAULT_RETRIES = 2;
@@ -42,7 +42,7 @@ export type {
  * Configuración del cliente ManagerCMS
  */
 export interface ManagerCMSConfig {
-  /** URL base del API. Por defecto: https://api.manager.1bits.site/api */
+  /** URL base del API. Por defecto: https://api.manager.1bits.site */
   apiUrl?: string;
   /** Token de autenticación (opcional si se usa tokenStore) */
   token?: string;
@@ -83,7 +83,7 @@ export interface ManagerCMSConfig {
  * ```typescript
  * // Configuración completa con cache y hooks
  * const cms = new ManagerCMS({
- *   apiUrl: 'https://mi-api-personalizada.com/api',
+ *   apiUrl: 'https://mi-api-personalizada.com',
  *   token: 'tu-token',
  *   cacheEnabled: true,
  *   cacheTTL: 300,

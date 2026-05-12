@@ -133,12 +133,12 @@ describe('ManagerCMS SDK', () => {
 
       expect(result.name).toBe('ManagerCMS API');
       expect(fetch).toHaveBeenCalledWith(
-        `${defaultUrl}/info/`,
+        `${defaultUrl}/api/info`,
         expect.any(Object)
       );
     });
 
-    it('getStats debería requerir autenticación', async () => {
+    it('getStats debería ser público', async () => {
       (fetch as any).mockResolvedValue({
         ok: true,
         json: async () => ({ websites: 1, content_types: 5, entries: 100 }),
@@ -148,12 +148,8 @@ describe('ManagerCMS SDK', () => {
 
       expect(result.entries).toBe(100);
       expect(fetch).toHaveBeenCalledWith(
-        `${defaultUrl}/stats/`,
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: `Bearer ${token}`,
-          }),
-        })
+        `${defaultUrl}/api/stats`,
+        expect.any(Object)
       );
     });
   });
