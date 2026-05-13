@@ -1,8 +1,6 @@
-
 import { ManagerCMS } from './src/index';
 
 async function debug() {
-  // Usamos el token que necesites, o uno vacío para endpoints públicos
   const cms = new ManagerCMS({
     token: 'KE5fzTCTlU3AdF55P3zM4bJ_fah43OXeWhg_0crt6NwcTq3Kk7lHJNaJqPYA5Bs5',
     hooks: {
@@ -15,66 +13,75 @@ async function debug() {
       onError: (error, url) => {
         console.error(`[SDK Error] URL: ${url}`);
         console.error(`[SDK Error] Message: ${error.message}`);
-        if (error.data) console.error(`[SDK Error] Data:`, error.data);
       }
     }
   });
 
   console.log(`--- Probando SDK con URL: ${cms.apiUrl} ---\n`);
 
-  console.log('1. Probando healthCheck (Debería ser /health)...');
+  console.log('1. Probando healthCheck...');
   try {
     const health = await cms.healthCheck();
-    console.log('Resultado:', health);
+    console.log('Resultado healthCheck:', health);
   } catch (e) {
     console.log('Fallo en healthCheck');
   }
 
-  console.log('\n2. Probando stats (El API dice que es público):');
+  console.log('\n2. Probando stats (Público)...');
   try {
-    const response = await fetch(`${cms.apiUrl}/api/stats`);
-    console.log(`Resultado /api/stats: ${response.status} ${response.statusText}`);
-    if (response.ok) {
-      console.log('DATOS STATS:', await response.json());
-    }
+    const stats = await cms.getStats();
+    console.log('Resultado stats:', stats);
   } catch (e) {
     console.log('Error en stats');
   }
 
-  console.log('\n3. Probando variaciones de website y content-types:');
-  const variations = [
-    '/api/websites/',
-    '/api/websites/content-types/'
-  ];
-
-  for (const path of variations) {
-    console.log(`Probando: ${path}`);
-    try {
-      const response = await fetch(`${cms.apiUrl}${path}`, {
-        headers: { 
-          'Authorization': `Bearer KE5fzTCTlU3AdF55P3zM4bJ_fah43OXeWhg_0crt6NwcTq3Kk7lHJNaJqPYA5Bs5`,
-          'Accept': 'application/json'
-        }
-      });
-      console.log(`Resultado ${path}: ${response.status} ${response.statusText}`);
-      if (response.ok) {
-        console.log(`DATOS en ${path}:`, await response.json());
-      } else {
-        const text = await response.text();
-        console.log(`Error body en ${path}:`, text.substring(0, 100));
-      }
-    } catch (e) {
-      console.log(`Error fatal en ${path}`);
-    }
+  console.log('\n3. Probando getWebsite (Protegido)...');
+  try {
+    const website = await cms.getWebsite();
+    console.log('Resultado getWebsite:', JSON.stringify(website, null, 2));
+  } catch (e: any) {
+    console.log(`Fallo en getWebsite: ${e.status} ${e.message}`);
   }
 
-  console.log('\n3. Continuando con el flujo normal...');
+  console.log('\n4. Probando API Info...');
   try {
     const info = await cms.getAPIInfo();
-    console.log('Resultado API Info:', info);
+    console.log('Resultado API Info:', JSON.stringify(info, null, 2));
   } catch (e) {
     console.log('Fallo en getAPIInfo');
   }
+
+  console.log('\n5. Probando getContentTypes (Protegido)...');
+  try {
+    const contentTypes = await cms.getContentTypes();
+    console.log('Resultado getContentTypes:', JSON.stringify(contentTypes, null, 2));
+  } catch (e: any) {
+    console.log(`Fallo en getContentTypes: ${e.status} ${e.message}`);
   }
 
-  debug();
+  console.log('\n6. Probando getEntries (probar con paginación)...');
+  try {
+    const entries = await cms.getEntries('post', { pageSize: 10, page: 1 });
+    console.log('Resultado getEntries (con paginación):', JSON.stringify(entries, null, 2));
+  } catch (e: any) {
+    console.log(`Fallo en getEntries paginado: ${e.status} ${e.message}`);
+  }
+
+  console.log('\n7. Probando getEntries (sin paginación)...');
+  try {
+    const entries = await cms.getEntries('post', {});
+    console.log('Resultado getEntries (sin paginación):', JSON.stringify(entries, null, 2));
+  } catch (e: any) {
+    console.log(`Fallo en getEntries sin paginación: ${e.status} ${e.message}`);
+  }
+
+  console.log('\n8. Probando getEntry (obtener un post específico)...');
+  try {
+    const entry = await cms.getEntry('post', 1);
+    console.log('Resultado getEntry:', JSON.stringify(entry, null, 2));
+  } catch (e: any) {
+    console.log(`Fallo en getEntry: ${e.status} ${e.message}`);
+  }
+}
+
+debug();

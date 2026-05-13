@@ -20,7 +20,7 @@ export class SettingsService {
   ) {}
 
   private async request<T>(endpoint: string, options: RequestInit = {}, useCache: boolean = false): Promise<T> {
-    const url = `${this.apiUrl}${endpoint}`;
+    const url = endpoint.startsWith('http') ? endpoint : `${this.apiUrl}${endpoint}`;
     this.hooksManager.onRequest(url, options);
 
     if (useCache && this.cache) {
@@ -61,7 +61,7 @@ export class SettingsService {
       } catch (error) {
         clearTimeout(timeoutId);
         lastError = error as Error;
-
+        
         if (error instanceof ManagerCMSError && error.status < 500 && error.status !== 0) {
           throw error;
         }
@@ -75,31 +75,10 @@ export class SettingsService {
     throw lastError || new ManagerCMSError(0, 'Request failed', { url });
   }
 
-  private async createError(response: Response, url: string): Promise<ManagerCMSError> {
-    const status = response.status;
-    const message = `Error: ${response.statusText}`;
-    let data = null;
-
-    try {
-      if (response.headers.get('content-type')?.includes('application/json')) {
-        data = await response.json();
-      }
-    } catch {
-      // Ignore
-    }
-    
-    if (status === 404) return new NotFoundError(message, { url, data });
-    if (status === 401) return new UnauthorizedError(message, { url, data });
-    if (status === 400) return new ValidationError(message, { url, data });
-    if (status >= 500) return new ServerError(message, { url, data });
-    
-    return new ManagerCMSError(status, message, { url, data, originalError: null });
-  }
-
   private async authenticatedRequest<T>(endpoint: string, options: RequestInit = {}, useCache: boolean = false): Promise<T> {
     const token = this.tokenStore.getToken();
     if (!token) {
-      const url = `${this.apiUrl}${endpoint}`;
+      const url = endpoint.startsWith('http') ? endpoint : `${this.apiUrl}${endpoint}`;
       const error = new UnauthorizedError('No authentication token available', { url });
       this.hooksManager.onError(error, url);
       throw error;
@@ -112,6 +91,29 @@ export class SettingsService {
         ...options.headers,
       },
     }, useCache);
+  }
+
+  private async createError(response: Response, url: string): Promise<ManagerCMSError> {
+    const status = response.status;
+    let data = null;
+    let message = `Error: ${response.statusText}`;
+
+    try {
+      if (response.headers.get('content-type')?.includes('application/json')) {
+        data = await response.json();
+        if (data.message) message = data.message;
+        else if (data.error) message = data.error;
+      }
+    } catch {
+      // Ignoramos errores de parseo
+    }
+
+    if (status === 404) return new NotFoundError(message, { url, data });
+    if (status === 401) return new UnauthorizedError(message, { url, data });
+    if (status === 400) return new ValidationError(message, { url, data });
+    if (status >= 500) return new ServerError(message, { url, data });
+
+    return new ManagerCMSError(status, message, { url, data, originalError: null });
   }
 
   async healthCheck(): Promise<HealthCheckResponse> {
@@ -127,11 +129,11 @@ export class SettingsService {
   }
 
   async getWebsite(): Promise<Website> {
-    return this.authenticatedRequest<Website>('/api/websites/', {}, true);
+    return this.authenticatedRequest<Website>('/api/v1/info', {}, true);
   }
 
   async getContentTypes(): Promise<ContentType[]> {
-    return this.authenticatedRequest<ContentType[]>('/api/websites/content-types/', {}, true);
+    return this.authenticatedRequest<ContentType[]>('/api/v1/content-types', {}, true);
   }
 
   clearCache(): void {

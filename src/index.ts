@@ -42,8 +42,6 @@ export type {
  * Configuración del cliente ManagerCMS
  */
 export interface ManagerCMSConfig {
-  /** URL base del API. Por defecto: https://api.manager.1bits.site */
-  apiUrl?: string;
   /** Token de autenticación (opcional si se usa tokenStore) */
   token?: string;
   /** Función fetch personalizada */
@@ -83,7 +81,6 @@ export interface ManagerCMSConfig {
  * ```typescript
  * // Configuración completa con cache y hooks
  * const cms = new ManagerCMS({
- *   apiUrl: 'https://mi-api-personalizada.com',
  *   token: 'tu-token',
  *   cacheEnabled: true,
  *   cacheTTL: 300,
@@ -115,13 +112,7 @@ export class ManagerCMS {
    */
   constructor(config: ManagerCMSConfig) {
     this.config = config;
-    let apiUrl = config.apiUrl || DEFAULT_API_URL;
-
-    // Normalizar URL eliminando slash final si existe
-    if (apiUrl.endsWith('/')) {
-      apiUrl = apiUrl.slice(0, -1);
-    }
-    this._apiUrl = apiUrl;
+    this._apiUrl = DEFAULT_API_URL;
 
     if (config.tokenStore) {
       this.tokenStore = config.tokenStore;
@@ -239,33 +230,5 @@ export class ManagerCMS {
    */
   async getEntry(contentType: string, id: number | string) {
     return this.content.getEntry(contentType, id);
-  }
-
-  /**
-   * Crea una nueva entrada
-   * @param contentType - Identificador del tipo de contenido
-   * @param data - Datos de la entrada
-   */
-  async createEntry<T = any>(contentType: string, data: any) {
-    return this.content.createEntry<T>(contentType, data);
-  }
-
-  /**
-   * Actualiza una entrada existente
-   * @param contentType - Identificador del tipo de contenido
-   * @param id - ID de la entrada
-   * @param data - Datos a actualizar
-   */
-  async updateEntry<T = any>(contentType: string, id: number | string, data: any) {
-    return this.content.updateEntry<T>(contentType, id, data);
-  }
-
-  /**
-   * Elimina una entrada
-   * @param contentType - Identificador del tipo de contenido
-   * @param id - ID de la entrada
-   */
-  async deleteEntry(contentType: string, id: number | string) {
-    return this.content.deleteEntry(contentType, id);
   }
 }

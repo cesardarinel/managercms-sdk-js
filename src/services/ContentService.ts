@@ -2,8 +2,6 @@ import type {
   Entry,
   GetEntriesOptions,
   PaginatedResponse,
-  CreateEntryData,
-  UpdateEntryData,
 } from '../models/types';
 import { ManagerCMSError, NotFoundError, UnauthorizedError, ValidationError, ServerError } from '../errors/ManagerCMSError';
 import type { ITokenStore } from '../stores/TokenStore';
@@ -27,9 +25,9 @@ export class ContentService {
   ) {}
 
   private async request<T>(endpoint: string, options: RequestInit = {}, useCache: boolean = false): Promise<T> {
-    const url = `${this.apiUrl}${endpoint}`;
+    const url = endpoint.startsWith('http') ? endpoint : `${this.apiUrl}${endpoint}`;
     
-    // Hooks no bloqueantes (se ejecutan en paralelo o después si es posible)
+    // Hooks no bloqueantes
     this.hooksManager.onRequest(url, options);
 
     if (useCache && this.cache) {
@@ -42,7 +40,6 @@ export class ContentService {
       throw new UnauthorizedError('No authentication token available', { url });
     }
 
-    // Headers optimizados (evitamos spread innecesario)
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -65,7 +62,6 @@ export class ContentService {
         this.hooksManager.onResponse(response);
 
         if (!response.ok) {
-          // Extraemos los datos del error si existen, pero de forma optimizada
           const error = await this.createError(response, url);
           this.hooksManager.onError(error, url);
           throw error;
@@ -81,7 +77,6 @@ export class ContentService {
         clearTimeout(timeoutId);
         lastError = error as Error;
         
-        // No reintentamos si es un error de cliente (400, 401, 404)
         if (error instanceof ManagerCMSError && error.status < 500 && error.status !== 0) {
           throw error;
         }
@@ -97,23 +92,24 @@ export class ContentService {
 
   private async createError(response: Response, url: string): Promise<ManagerCMSError> {
     const status = response.status;
-    const message = `Error: ${response.statusText}`;
     let data = null;
+    let message = `Error: ${response.statusText}`;
 
     try {
-      // Solo intentamos parsear si hay contenido
       if (response.headers.get('content-type')?.includes('application/json')) {
         data = await response.json();
+        if (data.message) message = data.message;
+        else if (data.error) message = data.error;
       }
     } catch {
-      // Ignoramos errores de parseo en el error
+      // Ignoramos errores de parseo
     }
-    
+
     if (status === 404) return new NotFoundError(message, { url, data });
     if (status === 401) return new UnauthorizedError(message, { url, data });
     if (status === 400) return new ValidationError(message, { url, data });
     if (status >= 500) return new ServerError(message, { url, data });
-    
+
     return new ManagerCMSError(status, message, { url, data, originalError: null });
   }
 
@@ -139,41 +135,12 @@ export class ContentService {
     }
 
     const queryString = params.toString();
-    const usePagination = options.pageSize || options.page;
-    const baseUrl = usePagination
-      ? `/api/websites/paginacion/content/${modelSlug}/entries/`
-      : `/api/websites/content/${modelSlug}/entries/`;
-
-    const endpoint = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+    const endpoint = `/api/v1/content/${modelSlug}${queryString ? `?${queryString}` : ''}`;
     return this.request<PaginatedResponse<Entry>>(endpoint, {}, !options.page);
   }
 
   async getEntry(modelSlug: string, id: number | string): Promise<Entry> {
-    return this.request<Entry>(`/api/websites/content/${modelSlug}/entries/${id}/`);
-  }
-
-  async createEntry<T = Entry>(modelSlug: string, data: CreateEntryData): Promise<T> {
-    return this.request<T>(`/api/websites/content/${modelSlug}/entries/`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateEntry<T = Entry>(
-    modelSlug: string,
-    id: number | string,
-    data: UpdateEntryData
-  ): Promise<T> {
-    return this.request<T>(`/api/websites/content/${modelSlug}/entries/${id}/`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteEntry(modelSlug: string, id: number | string): Promise<void> {
-    return this.request<void>(`/api/websites/content/${modelSlug}/entries/${id}/`, {
-      method: 'DELETE',
-    });
+    return this.request<Entry>(`/api/v1/content/${modelSlug}/${id}/`);
   }
 
   clearCache(): void {

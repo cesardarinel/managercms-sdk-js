@@ -4,7 +4,7 @@ import { ManagerCMS, ManagerCMSError } from './index';
 vi.stubGlobal('fetch', vi.fn());
 
 describe('ManagerCMS SDK', () => {
-  const defaultUrl = 'https://api.manager.1bits.site/api';
+  const defaultUrl = 'https://api.manager.1bits.site';
   const token = 'mi-token-secreto';
   let sdk: ManagerCMS;
 
@@ -52,49 +52,9 @@ describe('ManagerCMS SDK', () => {
       expect(customStore.getToken()).toBe('custom-token');
     });
 
-    it('debería permitir configurar apiUrl personalizada', async () => {
-      const customUrl = 'https://mi-servidor.com/api';
-      sdk = new ManagerCMS({
-        apiUrl: customUrl,
-        token,
-      });
-
-      (fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({ status: 'ok' }),
-      });
-
-      await sdk.healthCheck();
-
-      expect(fetch).toHaveBeenCalledWith(
-        `${customUrl}/health/`,
-        expect.any(Object)
-      );
-    });
-
-    it('debería normalizar apiUrl eliminando slash final', async () => {
-      const customUrl = 'https://mi-servidor.com/api/';
-      sdk = new ManagerCMS({
-        apiUrl: customUrl,
-        token,
-      });
-
-      (fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({ status: 'ok' }),
-      });
-
-      await sdk.healthCheck();
-
-      expect(fetch).toHaveBeenCalledWith(
-        'https://mi-servidor.com/api/health/',
-        expect.any(Object)
-      );
-    });
-
     it('debería exponer la apiUrl actual a través de un getter', () => {
-      sdk = new ManagerCMS({ apiUrl: 'https://mi-api.com/api' });
-      expect(sdk.apiUrl).toBe('https://mi-api.com/api');
+      sdk = new ManagerCMS({ token });
+      expect(sdk.apiUrl).toBe(defaultUrl);
     });
   });
 
@@ -113,7 +73,7 @@ describe('ManagerCMS SDK', () => {
 
       expect(result.status).toBe('ok');
       expect(fetch).toHaveBeenCalledWith(
-        `${defaultUrl}/health/`,
+        `${defaultUrl}/health`,
         expect.any(Object)
       );
     });
@@ -169,7 +129,7 @@ describe('ManagerCMS SDK', () => {
 
       expect(result.name).toBe('Mi Sitio');
       expect(fetch).toHaveBeenCalledWith(
-        `${defaultUrl}/websites/`,
+        `${defaultUrl}/api/v1/info`,
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: `Bearer ${token}`,
@@ -192,7 +152,7 @@ describe('ManagerCMS SDK', () => {
       expect(result).toHaveLength(2);
       expect(result[0].api_identifier).toBe('blog');
       expect(fetch).toHaveBeenCalledWith(
-        `${defaultUrl}/websites/content-types/`,
+        `${defaultUrl}/api/v1/content-types`,
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: `Bearer ${token}`,
@@ -223,7 +183,7 @@ describe('ManagerCMS SDK', () => {
       expect(result.count).toBe(50);
       expect(result.results).toHaveLength(1);
       expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining(`${defaultUrl}/websites/paginacion/content/blog/entries/`),
+        expect.stringContaining(`${defaultUrl}/api/v1/content/blog?`),
         expect.any(Object)
       );
     });
@@ -244,60 +204,8 @@ describe('ManagerCMS SDK', () => {
 
       expect(result.id).toBe(123);
       expect(fetch).toHaveBeenCalledWith(
-        `${defaultUrl}/websites/content/blog/entries/123/`,
+        `${defaultUrl}/api/v1/content/blog/123/`,
         expect.any(Object)
-      );
-    });
-
-    it('createEntry debería crear una nueva entrada', async () => {
-      (fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          id: 456,
-          data: '{"title": "Nuevo Post"}',
-          status: 'draft',
-          created_at: '2024-01-02',
-          updated_at: '2024-01-02',
-        }),
-      });
-
-      const result = await sdk.createEntry('blog', {
-        data: { title: 'Nuevo Post' },
-        status: 'draft',
-      });
-
-      expect(fetch).toHaveBeenCalledWith(
-        `${defaultUrl}/websites/content/blog/entries/`,
-        expect.objectContaining({ method: 'POST' })
-      );
-    });
-
-    it('updateEntry debería actualizar una entrada existente', async () => {
-      (fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({}),
-      });
-
-      await sdk.updateEntry('blog', 123, { data: { title: 'Actualizado' } });
-
-      expect(fetch).toHaveBeenCalledWith(
-        `${defaultUrl}/websites/content/blog/entries/123/`,
-        expect.objectContaining({ method: 'PUT' })
-      );
-    });
-
-    it('deleteEntry debería eliminar una entrada', async () => {
-      (fetch as any).mockResolvedValue({
-        ok: true,
-        status: 204,
-        json: async () => ({}),
-      });
-
-      await sdk.deleteEntry('blog', 123);
-
-      expect(fetch).toHaveBeenCalledWith(
-        `${defaultUrl}/websites/content/blog/entries/123/`,
-        expect.objectContaining({ method: 'DELETE' })
       );
     });
   });
